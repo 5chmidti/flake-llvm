@@ -18,7 +18,7 @@
     {
       packages.${system}.default =
         with pkgs;
-        stdenv.mkDerivation rec {
+        llvm.stdenv.mkDerivation rec {
           name = "llvm";
           buildInputs = [
             bashInteractive
