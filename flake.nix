@@ -8,19 +8,24 @@
   outputs =
     { self, nixpkgs }:
     let
+      system = "x86_64-linux";
+      pkgs = import nixpkgs {
+        inherit system;
+      };
       llvm_version = "18";
+      llvm = pkgs."llvmPackages_${llvm_version}";
     in
     {
-      packages.x86_64-linux.default =
-        with import nixpkgs { system = "x86_64-linux"; };
+      packages.${system}.default =
+        with pkgs;
         stdenv.mkDerivation rec {
           name = "llvm";
           buildInputs = [
             bashInteractive
-            clang-tools_18
+            pkgs."clang-tools_${llvm_version}"
             cmake
-            llvmPackages_18.clang
-            llvmPackages_18.llvm
+            llvm.clang
+            llvm.llvm
             mold
             ncurses
             ninja
@@ -39,7 +44,7 @@
           CFLAGS = "-B${gccForLibs}/lib/gcc/${targetPlatform.config}/${gccForLibs.version} -B ${stdenv.cc.libc}/lib --gcc-toolchain=${gcc}";
 
           cmakeFlags = [
-            "-DC_INCLUDE_DIRS=${pkgs.llvmPackages_18.stdenv.cc.libc.dev}/include"
+            "-DC_INCLUDE_DIRS=${llvm.stdenv.cc.libc.dev}/include"
             "-GNinja"
 
             "-DLLVM_INSTALL_TOOLCHAIN_ONLY=ON"
@@ -78,8 +83,8 @@
               echo $path''${after:+':'}$after
             }
 
-            export CPATH=$(buildcpath $NIX_CFLAGS_COMPILE $(<${pkgs.llvmPackages_18.clang}/nix-support/libc-cflags)):${stdenv.cc}/resource-root/include
-            export CPLUS_INCLUDE_PATH=$(buildcpath $NIX_CFLAGS_COMPILE $(<${pkgs.llvmPackages_18.clang}/nix-support/libcxx-cxxflags) $(<${stdenv.cc}/nix-support/libc-cflags)):${stdenv.cc}/resource-root/include
+            export CPATH=$(buildcpath $NIX_CFLAGS_COMPILE $(<${llvm.clang}/nix-support/libc-cflags)):${stdenv.cc}/resource-root/include
+            export CPLUS_INCLUDE_PATH=$(buildcpath $NIX_CFLAGS_COMPILE $(<${llvm.clang}/nix-support/libcxx-cxxflags) $(<${stdenv.cc}/nix-support/libc-cflags)):${stdenv.cc}/resource-root/include
           '';
         };
     };
