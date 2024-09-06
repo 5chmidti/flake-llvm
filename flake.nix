@@ -39,9 +39,9 @@
           ];
 
           # where to find libgcc
-          NIX_LDFLAGS = "-L${gccForLibs}/lib/gcc/${targetPlatform.config}/${gccForLibs.version} -L${pkgs.lib.makeLibraryPath buildInputs}";
+          NIX_LDFLAGS = "-L${pkgs.lib.makeLibraryPath buildInputs}";
           # teach clang about C startup file locations
-          CFLAGS = "-B${gccForLibs}/lib/gcc/${targetPlatform.config}/${gccForLibs.version} -B ${stdenv.cc.libc}/lib --gcc-toolchain=${gcc}";
+          CFLAGS = "-B ${stdenv.cc.libc}/lib --gcc-toolchain=${gcc}";
 
           cmakeFlags = [
             "-DC_INCLUDE_DIRS=${llvm.stdenv.cc.libc.dev}/include"
