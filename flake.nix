@@ -12,7 +12,7 @@
       pkgs = import nixpkgs {
         inherit system;
       };
-      llvm_version = "18";
+      llvm_version = "19";
       llvm = pkgs."llvmPackages_${llvm_version}";
     in
     {
