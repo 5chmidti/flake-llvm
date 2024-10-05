@@ -12,36 +12,47 @@
       pkgs = import nixpkgs {
         inherit system;
       };
-      llvm_version = "19";
+      llvm_version = "18";
       llvm = pkgs."llvmPackages_${llvm_version}";
     in
     {
       packages.${system}.default =
-        with pkgs;
+        #useMoldLinker 
         llvm.stdenv.mkDerivation rec {
           name = "llvm";
           buildInputs = [
-            bashInteractive
-            pkgs."clang-tools_${llvm_version}"
-            cmake
-            llvm.clang
-            llvm.llvm
-            mold
-            ncurses
-            ninja
-            python3
-            zlib
+            pkgs.cmake
+            pkgs.mold-wrapped
+            pkgs.ncurses
+            pkgs.ninja
+            pkgs.python3
+            pkgs.zlib
+          ];
+
+          nativeBuildInputs = [
+            pkgs.bashInteractive
+            pkgs.cmake
+            llvm.clang-tools
+            pkgs.mold-wrapped
+            pkgs.ncurses
+            pkgs.ninja
+            pkgs.python3
+            pkgs.python3
+            pkgs.zlib
           ];
 
           propagateBuildInputs = [
-            ncurses
-            zlib
+            pkgs.ncurses
+            pkgs.zlib
           ];
 
           # where to find libgcc
-          NIX_LDFLAGS = "-L${pkgs.lib.makeLibraryPath buildInputs}";
+          NIX_LDFLAGS = "${
+            pkgs.lib.strings.concatMapStrings (x: " -L" + x + "/lib") buildInputs
+          } -L${llvm.stdenv.cc.libc}/lib -L${llvm.stdenv.cc.cc}/lib -L${pkgs.gccForLibs}/lib/gcc/${pkgs.targetPlatform.config}/${pkgs.gccForLibs.version}";
           # teach clang about C startup file locations
-          CFLAGS = "-B ${stdenv.cc.libc}/lib --gcc-toolchain=${gcc}";
+          CFLAGS = "-B${llvm.stdenv.cc.libc}/lib -B${pkgs.gccForLibs}/lib/gcc/${pkgs.targetPlatform.config}/${pkgs.gccForLibs.version} --gcc-toolchain=${pkgs.gcc} ${builtins.readFile "${llvm.stdenv.cc}/nix-support/cc-cflags"}";
+          CXXFLAGS = CFLAGS;
 
           cmakeFlags = [
             "-DC_INCLUDE_DIRS=${llvm.stdenv.cc.libc.dev}/include"
@@ -49,11 +60,11 @@
 
             "-DLLVM_INSTALL_TOOLCHAIN_ONLY=ON"
 
+            "-DCMAKE_EXE_LINKER_FLAGS=\"-L${pkgs.libgcc}/lib\""
+
             "-DCMAKE_BUILD_TYPE=Release"
             "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
-            "-DCMAKE_CXX_FLAGS=-march=native"
             "-DCMAKE_C_COMPILER_LAUNCHER=ccache"
-            "-DCMAKE_C_FLAGS=-march=native"
             "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra"
             "-DLLVM_ENABLE_RUNTIMES=compiler-rt;openmp"
             "-DLLVM_OPTIMIZED_TABLEGEN=ON"
@@ -62,7 +73,7 @@
             "-DLLVM_USE_LINKER=mold"
           ];
 
-          LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath buildInputs}:${gccForLibs.lib}/lib:$LD_LIRARY_PATH";
+          LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.gcc.cc.lib}/lib:$LD_LIRARY_PATH";
 
           shellHook = ''
             buildcpath() {
@@ -83,8 +94,8 @@
               echo $path''${after:+':'}$after
             }
 
-            export CPATH=$(buildcpath $NIX_CFLAGS_COMPILE $(<${llvm.clang}/nix-support/libc-cflags)):${stdenv.cc}/resource-root/include
-            export CPLUS_INCLUDE_PATH=$(buildcpath $NIX_CFLAGS_COMPILE $(<${llvm.clang}/nix-support/libcxx-cxxflags) $(<${stdenv.cc}/nix-support/libc-cflags)):${stdenv.cc}/resource-root/include
+            export CPATH=$(buildcpath $NIX_CFLAGS_COMPILE $(<${llvm.clang}/nix-support/libc-cflags)):${llvm.stdenv.cc}/resource-root/include
+            export CPLUS_INCLUDE_PATH=$(buildcpath $NIX_CFLAGS_COMPILE $(<${llvm.clang}/nix-support/libcxx-cxxflags) $(<${llvm.stdenv.cc}/nix-support/libc-cflags)):${llvm.stdenv.cc}/resource-root/include
           '';
         };
     };
