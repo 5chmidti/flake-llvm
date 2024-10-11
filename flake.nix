@@ -22,6 +22,7 @@
           name = "llvm";
           buildInputs = [
             pkgs.cmake
+            pkgs.libgcc
             pkgs.mold-wrapped
             pkgs.ncurses
             pkgs.ninja
@@ -37,7 +38,6 @@
             pkgs.ncurses
             pkgs.ninja
             pkgs.python3
-            pkgs.python3
             pkgs.zlib
           ];
 
@@ -47,12 +47,11 @@
           ];
 
           # where to find libgcc
-          NIX_LDFLAGS = "${
-            pkgs.lib.strings.concatMapStrings (x: " -L" + x + "/lib") buildInputs
-          } -L${llvm.stdenv.cc.libc}/lib -L${llvm.stdenv.cc.cc}/lib -L${pkgs.gccForLibs}/lib/gcc/${pkgs.targetPlatform.config}/${pkgs.gccForLibs.version}";
+          NIX_LDFLAGS = "-L${llvm.stdenv.cc.libc}/lib -L${llvm.stdenv.cc.cc}/lib";
           # teach clang about C startup file locations
           CFLAGS = "-B${llvm.stdenv.cc.libc}/lib -B${pkgs.gccForLibs}/lib/gcc/${pkgs.targetPlatform.config}/${pkgs.gccForLibs.version} --gcc-toolchain=${pkgs.gcc} ${builtins.readFile "${llvm.stdenv.cc}/nix-support/cc-cflags"}";
           CXXFLAGS = CFLAGS;
+          LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.gcc.cc.lib}/lib:$LD_LIRARY_PATH";
 
           cmakeFlags = [
             "-DC_INCLUDE_DIRS=${llvm.stdenv.cc.libc.dev}/include"
@@ -72,8 +71,6 @@
             "-DLLVM_TARGETS_TO_BUILD=X86"
             "-DLLVM_USE_LINKER=mold"
           ];
-
-          LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath buildInputs}:${pkgs.gcc.cc.lib}/lib:$LD_LIRARY_PATH";
 
           shellHook = ''
             buildcpath() {
